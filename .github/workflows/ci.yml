@@ -4,10 +4,19 @@ on:
   push:
     branches: [main]
   pull_request:
+  # 手动触发：Actions 页右侧 "Run workflow"，用于首次推送后队列卡住时补跑
+  workflow_dispatch:
+
+# 同一分支只保留最新一次，避免旧 run 长期占着队列
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    # 卡住时不要无限排队：10 分钟没跑完就判失败
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -15,30 +24,43 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Environment
+        run: |
+          node --version
+          echo "event=${{ github.event_name }} ref=${{ github.ref }}"
+
       - name: Syntax check
-        run: node --check packages/dsh-session-link/index.js && node --check packages/dsh-session-link-preview/index.js && node --check packages/dsh-session-link-preview/lib/impl.js && node --check packages/dsh-session-link-client/client.js && node --check packages/dsh-session-link-client/index.js
+        run: |
+          node --check packages/dsh-session-link/index.js
+          node --check packages/dsh-session-link-preview/index.js
+          node --check packages/dsh-session-link-preview/lib/impl.js
+          node --check packages/dsh-session-link-client/client.js
+          node --check packages/dsh-session-link-client/index.js
 
       - name: package.json files are valid JSON
-        run: |
-          node -e "
-          const fs = require('node:fs')
-          const files = [
-            'package.json',
-            'packages/dsh-session-link/package.json',
-            'packages/dsh-session-link-client/package.json',
-            'packages/dsh-session-link-preview/package.json',
-            'packages/dsh-session-link-diag/package.json'
-          ]
-          for (const file of files) {
-            JSON.parse(fs.readFileSync(file, 'utf8'))
-            console.log('ok', file)
-          }
-          "
+        # 逻辑放在 scripts/check-package-json.cjs 里，本地与 CI 跑同一份代码
+        run: node scripts/check-package-json.cjs
 
       # 客户端半侧自带迷你 React + 迷你 DOM，不需要浏览器，也不需要 dsh 环境
       - name: Client smoke test
         run: node test/client-smoke.cjs
 
-      # 宿主侧需要真实会话文件；CI 上跳过（脚本会打印跳过原因并正常退出）
+      # 宿主侧需要真实会话文件；CI 上没有，脚本会打印跳过原因并正常退出
       - name: Host offline test (skips without sessions)
         run: node test/offline-test.cjs
+
+      - name: Install script dry run
+        run: |
+          mkdir -p "$RUNNER_TEMP/fake-dsh/profiles/web/node_modules"
+          printf '[]\n' > "$RUNNER_TEMP/fake-dsh/profiles/web/cordis.patch.yml"
+          chmod +x scripts/install.sh
+          DSH_HOME="$RUNNER_TEMP/fake-dsh" ./scripts/install.sh
+          node -e "
+          const fs = require('node:fs')
+          const text = fs.readFileSync(process.env.RUNNER_TEMP + '/fake-dsh/profiles/web/cordis.patch.yml', 'utf8')
+          if (!text.includes('dsh-session-link (managed block')) throw new Error('patch block missing')
+          for (const p of ['dsh-session-link', 'dsh-session-link-client', 'dsh-session-link-preview']) {
+            if (!fs.existsSync(process.env.RUNNER_TEMP + '/fake-dsh/profiles/web/node_modules/' + p)) throw new Error('missing package ' + p)
+          }
+          console.log('install.sh ok')
+          "

@@ -144,16 +144,41 @@ pnpm add https://github.com/Moqianying/dsh-session-link/tarball/main
 - **勾了但模型没反应**：`session_link action=status` 看当前会话属于哪些组；组里必须**有两个以上**会话。
 - **想关掉**：`enabled: false`，或删掉 patch 块。
 
-## 测试
+## 界面
+
+截图放在 [docs/preview/](docs/preview/)，采集清单与嵌入片段见 [docs/preview/README.md](docs/preview/README.md)
+（运行 `./scripts/capture.ps1` 会打开需要的页面并打印采集步骤）。
+
+## 测试与本地验证
 
 ```bash
 node test/offline-test.cjs    # 宿主逻辑：list/link/digest/search/pre-step 注入/去重/落盘
-node test/client-smoke.cjs    # 浏览器半侧：包壳/注册/样式/真渲染/5 条交互断言
+node test/client-smoke.cjs    # 浏览器半侧：包壳/注册/样式/真渲染/交互断言
 ```
 
-`offline-test` 需要一个真实会话目录，默认读 `$DSH_HOME/sessions/--<project>--`，
+`offline-test` 需要一个真实会话目录，默认读 `$DSH_HOME/sessions/<project>`，
 可用 `DSH_SESSIONS_DIR` 指定；目录不存在时脚本会跳过并给出提示。
 `client-smoke` 自带迷你 React（4 个 hook + 依赖比较 + 渲染循环）与迷你 DOM，**不需要浏览器**。
+
+一条命令跑「等同 CI」的检查（GitHub 的 Actions 队列卡住时用它兜底）：
+
+```powershell
+./scripts/verify.ps1                                        # 语法 + JSON + 客户端测试
+./scripts/verify.ps1 -SessionsDir "$env:DSH_HOME\sessions\<project>"   # 额外跑宿主离线测试
+```
+
+## 维护脚本
+
+| 脚本 | 用途 |
+| --- | --- |
+| `scripts/install.ps1` / `install.sh` | 装进 profile，幂等维护 patch 标记块 |
+| `scripts/verify.ps1` | 本地跑等同 CI 的检查（可当提交前钩子） |
+| `scripts/set-owner.ps1` | 把 `<YOU>` / `<YOUR NAME>` 占位符换成你的信息 |
+| `scripts/set-repo-meta.ps1` | 填仓库 description / topics（gh 或 `-Token`） |
+| `scripts/release.ps1` | 先 verify → 打注释 tag → push tag → （可选）建 Release |
+| `scripts/capture.ps1` | 打印截图清单并打开需要采集的页面 |
+
+除 `install.*` 外都支持 `-DryRun`，先看它要做什么再执行。
 
 ## 兼容性
 
