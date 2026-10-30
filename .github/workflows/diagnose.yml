@@ -1,9 +1,13 @@
-# CI（文件名沿用已通过验证的 diagnose.yml，避免新建工作流引入未知变量）
+# CI（文件名为 diagnose.yml，避免新建工作流引入未知变量）
 #
-# 这个仓库的实测结论：
-#   - 零第三方 action 的 workflow 能正常跑（本文件的前两个 step 曾独立跑绿）
-#   - `actions/checkout` / `actions/setup-node`（v4/v7 都试过）会在 set up 阶段 exit 1
-# 因此这里**不使用任何 `uses:`**：用 git clone 取代码，Node 用镜像自带的。
+# 为什么拆成多个 job：
+#   GitHub 的 job 日志需要登录态，而这个仓库的 step 级信息在匿名 API 里拿不到
+#   （成功/失败都返回 steps=0，注解恒为 path=.github line=23）。
+#   但 **每个 job 会各自对应一个 check-run**，其 name + conclusion 匿名可读。
+#   于是「哪一步坏」可以直接从 API 看名字，不需要日志。
+#
+# 全部 job 都：runs-on ubuntu-24.04、零 `uses:`、匿名 git clone（仓库是公开的）。
+
 name: ci
 
 on:
@@ -17,37 +21,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      # ---- step 1：环境探针（这一步历史上单独跑绿过，失败说明 runner 侧有问题） ----
-      - name: 1. Runner info
+      - name: Runner info
         run: |
-          set -euo pipefail
           echo "whoami: $(whoami)"
           echo "uname: $(uname -a)"
           echo "pwd: $PWD"
-          echo "node: $(command -v node || echo 'node 未预装')"
+          echo "node: $(command -v node || echo 'missing')"
           node --version || true
-          echo "npm: $(npm --version 2>/dev/null || echo 'npm 不可用')"
+          echo "npm: $(npm --version 2>/dev/null || echo 'unavailable')"
           echo "git: $(git --version)"
 
-      # ---- step 2：取代码（不用 actions/checkout） ----
-      - name: 2. Checkout via git clone
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  clone:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Anonymous git clone
         run: |
-          set -euo pipefail
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
+          git clone "https://github.com/${GITHUB_REPOSITORY}.git" .
           git checkout --quiet "$GITHUB_SHA"
           git log --oneline -1
           ls -la | head -n 20
 
-      # ---- step 3 起：真正的检查 ----
-      - name: 3. Syntax check
+  syntax:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Syntax check
         run: |
-          set -euo pipefail
+          git clone --quiet "https://github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
           for f in \
             packages/dsh-session-link/index.js \
             packages/dsh-session-link-preview/index.js \
@@ -58,25 +64,47 @@ jobs:
             echo "check $f"
             node --check "$f"
           done
-          echo "syntax ok"
 
-      - name: 4. package.json files are valid JSON
-        run: node scripts/check-package-json.cjs
-
-      - name: 5. Client smoke test
-        run: node test/client-smoke.cjs
-
-      - name: 6. Host offline test (skips without sessions)
-        run: node test/offline-test.cjs
-
-      - name: 7. Install script dry run
+  package-json:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: package.json files are valid JSON
         run: |
-          set -euo pipefail
+          git clone --quiet "https://github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
+          node scripts/check-package-json.cjs
+
+  client-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Client smoke test (mini React, no browser)
+        run: |
+          git clone --quiet "https://github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
+          node test/client-smoke.cjs
+
+  host-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Host offline test (skips without session files)
+        run: |
+          git clone --quiet "https://github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
+          node test/offline-test.cjs
+
+  install-dry-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Install into a throwaway profile
+        run: |
+          git clone --quiet "https://github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
           mkdir -p "$RUNNER_TEMP/fake-dsh/profiles/web/node_modules"
           printf '[]\n' > "$RUNNER_TEMP/fake-dsh/profiles/web/cordis.patch.yml"
           chmod +x scripts/install.sh
           DSH_HOME="$RUNNER_TEMP/fake-dsh" ./scripts/install.sh
           node scripts/check-install-result.cjs "$RUNNER_TEMP/fake-dsh"
-
-      - name: 8. Done
-        run: echo "全部步骤完成"
