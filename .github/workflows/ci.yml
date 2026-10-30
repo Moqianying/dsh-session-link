@@ -19,15 +19,24 @@ jobs:
     # 卡住时不要无限排队：10 分钟没跑完就判失败
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      # 不用 actions/checkout：本仓库实测该 action（v4/v7 都试过）在此 runner 上
+      # 会在 set up 阶段 exit 1，而零 action 的 diagnose workflow 正常。
+      # 用 git clone 等价替代，少一个会失败的第三方依赖。
+      - name: Checkout (git clone, no third-party action)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
+          git log --oneline -1
 
-      # 刻意不用 actions/setup-node：镜像自带 Node，少一个会失败的第三方 action。
-      # 需要特定版本时再显式装，并先看这一步的日志。
       - name: Environment
         run: |
           node --version
           npm --version
           echo "event=${{ github.event_name }} ref=${{ github.ref }} sha=${{ github.sha }}"
+          ls -la | head -n 15
 
       - name: Syntax check
         run: |

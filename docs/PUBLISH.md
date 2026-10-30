@@ -203,7 +203,8 @@ pnpm add https://github.com/你的用户名/dsh-session-link/tarball/v0.1.0
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
-| CI 每次都在 **8～16 秒**失败，job 的 `steps=0`，注解只有一行 `Process completed with exit code 1` | **action 主版本过旧**：`actions/checkout@v4` / `actions/setup-node@v4` 是 Node 20 时代的产物，Node 20 弃用 + `ubuntu-latest` 迁到 Ubuntu 26 后会被强制跑在 Node 24 上，`setup-node` 直接 exit 1 | 升到 `@v7`（当前最新：checkout v7.0.1 / setup-node v7.1.0）；查最新版：`GET https://api.github.com/repos/actions/setup-node/releases/latest` |
+| CI 每次都在 **10～16 秒**失败，注解只有一行 `Process completed with exit code 1` | 先分清是**账号/runner** 还是 **action**：加一个零 `uses:` 的诊断 workflow（见 `.github/workflows/diagnose.yml`）对着跑 | 诊断绿 + 主 CI 红 → 是 action 的问题；诊断也红 → 账号/runner 侧（查 Settings → Actions、计费、Support） |
+| 确诊是 action：`actions/checkout` / `actions/setup-node` 失败 | 本仓库实测：`checkout` v4/v7、`setup-node` v4/v7 在该 runner 的 set up 阶段就 exit 1，而零 action 的 workflow 正常 | 直接用 shell 替代：`git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .` + `git checkout $GITHUB_SHA`；Node 用镜像自带的，不再 `setup-node` |
 | `git push` 403 / `Authentication failed` | 用了账户密码，或 token 没有 `repo` 权限 | 用 PAT（classic 勾 `repo`，fine-grained 给 Contents: Read and write） |
 | `failed to push some refs (fetch first)` | 建仓时勾了 README/license，远程已有提交 | `git pull --rebase origin main` 后再 push |
 | `src refspec main does not match any` | 还没提交，或分支叫 `master` | `git log --oneline` 确认有提交；`git branch -M main` |
