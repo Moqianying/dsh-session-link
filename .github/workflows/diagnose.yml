@@ -1,36 +1,82 @@
-# 诊断用 workflow：**不使用任何 `uses:` 步骤**，全部是纯 shell。
+# CI（文件名沿用已通过验证的 diagnose.yml，避免新建工作流引入未知变量）
 #
-# 目的：把「我们的 YAML / 第三方 action / 账号与 runner」三类原因分开。
-#   - 本 workflow 通过      → runner 与账号正常，问题出在别的 workflow 的 action 或步骤上
-#   - 本 workflow 也失败     → 账号/runner 侧问题（计费、Actions 未启用、封禁等），与我们的代码无关
-#
-# 触发：push 到 main、手动 Run workflow。
-name: diagnose
+# 这个仓库的实测结论：
+#   - 零第三方 action 的 workflow 能正常跑（本文件的前两个 step 曾独立跑绿）
+#   - `actions/checkout` / `actions/setup-node`（v4/v7 都试过）会在 set up 阶段 exit 1
+# 因此这里**不使用任何 `uses:`**：用 git clone 取代码，Node 用镜像自带的。
+name: ci
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: diagnose-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  runner:
+  test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Runner info (no actions used)
+      # ---- step 1：环境探针（这一步历史上单独跑绿过，失败说明 runner 侧有问题） ----
+      - name: 1. Runner info
         run: |
+          set -euo pipefail
           echo "whoami: $(whoami)"
-          echo "os: $(uname -a)"
+          echo "uname: $(uname -a)"
+          echo "pwd: $PWD"
           echo "node: $(command -v node || echo 'node 未预装')"
           node --version || true
+          echo "npm: $(npm --version 2>/dev/null || echo 'npm 不可用')"
           echo "git: $(git --version)"
-          echo "workspace: $PWD"
+
+      # ---- step 2：取代码（不用 actions/checkout） ----
+      - name: 2. Checkout via git clone
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
+          git checkout --quiet "$GITHUB_SHA"
+          git log --oneline -1
           ls -la | head -n 20
 
-      - name: Can we reach GitHub?
+      # ---- step 3 起：真正的检查 ----
+      - name: 3. Syntax check
         run: |
-          git ls-remote --heads "https://github.com/${{ github.repository }}.git" | head -n 5
+          set -euo pipefail
+          for f in \
+            packages/dsh-session-link/index.js \
+            packages/dsh-session-link-preview/index.js \
+            packages/dsh-session-link-preview/lib/impl.js \
+            packages/dsh-session-link-client/client.js \
+            packages/dsh-session-link-client/index.js
+          do
+            echo "check $f"
+            node --check "$f"
+          done
+          echo "syntax ok"
+
+      - name: 4. package.json files are valid JSON
+        run: node scripts/check-package-json.cjs
+
+      - name: 5. Client smoke test
+        run: node test/client-smoke.cjs
+
+      - name: 6. Host offline test (skips without sessions)
+        run: node test/offline-test.cjs
+
+      - name: 7. Install script dry run
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fake-dsh/profiles/web/node_modules"
+          printf '[]\n' > "$RUNNER_TEMP/fake-dsh/profiles/web/cordis.patch.yml"
+          chmod +x scripts/install.sh
+          DSH_HOME="$RUNNER_TEMP/fake-dsh" ./scripts/install.sh
+          node scripts/check-install-result.cjs "$RUNNER_TEMP/fake-dsh"
+
+      - name: 8. Done
+        run: echo "全部步骤完成"
