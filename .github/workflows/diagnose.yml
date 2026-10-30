@@ -1,0 +1,36 @@
+# 诊断用 workflow：**不使用任何 `uses:` 步骤**，全部是纯 shell。
+#
+# 目的：把「我们的 YAML / 第三方 action / 账号与 runner」三类原因分开。
+#   - 本 workflow 通过      → runner 与账号正常，问题出在别的 workflow 的 action 或步骤上
+#   - 本 workflow 也失败     → 账号/runner 侧问题（计费、Actions 未启用、封禁等），与我们的代码无关
+#
+# 触发：push 到 main、手动 Run workflow。
+name: diagnose
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: diagnose-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Runner info (no actions used)
+        run: |
+          echo "whoami: $(whoami)"
+          echo "os: $(uname -a)"
+          echo "node: $(command -v node || echo 'node 未预装')"
+          node --version || true
+          echo "git: $(git --version)"
+          echo "workspace: $PWD"
+          ls -la | head -n 20
+
+      - name: Can we reach GitHub?
+        run: |
+          git ls-remote --heads "https://github.com/${{ github.repository }}.git" | head -n 5

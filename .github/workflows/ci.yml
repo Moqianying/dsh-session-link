@@ -14,22 +14,20 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # 钉到 24.04：ubuntu-latest 已开始迁到 Ubuntu 26，钉住能排除镜像变量
+    runs-on: ubuntu-24.04
     # 卡住时不要无限排队：10 分钟没跑完就判失败
     timeout-minutes: 10
     steps:
-      # 必须用新版 action：v4 系是 Node 20 时代产物，在 Node 20 弃用 + ubuntu-latest
-      # 迁到 Ubuntu 26 之后会被强制跑在 Node 24 上并 exit 1（表现为 job 8 秒失败、steps=0）。
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '24'
-
+      # 刻意不用 actions/setup-node：镜像自带 Node，少一个会失败的第三方 action。
+      # 需要特定版本时再显式装，并先看这一步的日志。
       - name: Environment
         run: |
           node --version
-          echo "event=${{ github.event_name }} ref=${{ github.ref }}"
+          npm --version
+          echo "event=${{ github.event_name }} ref=${{ github.ref }} sha=${{ github.sha }}"
 
       - name: Syntax check
         run: |
