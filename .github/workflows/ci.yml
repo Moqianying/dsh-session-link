@@ -18,9 +18,11 @@ jobs:
     # 卡住时不要无限排队：10 分钟没跑完就判失败
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      # 必须用新版 action：v4 系是 Node 20 时代产物，在 Node 20 弃用 + ubuntu-latest
+      # 迁到 Ubuntu 26 之后会被强制跑在 Node 24 上并 exit 1（表现为 job 8 秒失败、steps=0）。
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
