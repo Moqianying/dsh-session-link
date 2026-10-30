@@ -91,7 +91,12 @@ function readSession(sessionDir) {
 }
 
 // —— 假的 sessionPersistence ——
-const ids = fs.readdirSync(SESSIONS_ROOT).filter((name) => name.startsWith('session-'))
+// 没有会话目录时不能崩：CI（Linux、全新环境）就是这种情况，脚本应打印跳过并 exit 0。
+// 之前这里直接 readdirSync(undefined) 抛 ERR_INVALID_ARG_TYPE，导致整个 CI job 失败，
+// 但错误在模块加载期就抛出，remote 上只能看到一句 "Process completed with exit code 1"。
+const ids = SESSIONS_ROOT === undefined
+  ? []
+  : fs.readdirSync(SESSIONS_ROOT).filter((name) => name.startsWith('session-'))
 const cache = new Map()
 const persistence = {
   async list() {

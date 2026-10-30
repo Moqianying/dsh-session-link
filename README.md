@@ -1,5 +1,7 @@
 # dsh-session-link · DSH 会话互联插件
 
+[![ci](https://github.com/Moqianying/dsh-session-link/actions/workflows/diagnose.yml/badge.svg)](https://github.com/Moqianying/dsh-session-link/actions/workflows/diagnose.yml)
+
 > 把任意挑几个历史会话「链接」成组，让组内会话**互通跨会话记忆**。设置面板里带图标的独立页面，勾选即生效。
 > DeepSeek Harness（dsh）Web GUI 插件。中文文档 ← 本文件；English: [README.en.md](README.en.md)
 
@@ -150,6 +152,14 @@ pnpm add https://github.com/Moqianying/dsh-session-link/tarball/main
 （运行 `./scripts/capture.ps1` 会打开需要的页面并打印采集步骤）。
 
 ## 测试与本地验证
+
+CI 是**一个文件、七个 job**（`.github/workflows/diagnose.yml`，全部零第三方 action）：
+
+`probe` · `clone` · `syntax` · `package-json` · `client-smoke` · `host-offline` · `install-dry-run`
+
+拆成多 job 是有意的：一个 job 一件事，失败时 GitHub 的 check 列表直接指出是哪件，
+不用翻日志（`actions/checkout` / `setup-node` 在部分 runner 上会在 set up 阶段失败，
+所以 CI 用 `git clone` 代替，Node 用镜像自带的）。
 
 ```bash
 node test/offline-test.cjs    # 宿主逻辑：list/link/digest/search/pre-step 注入/去重/落盘

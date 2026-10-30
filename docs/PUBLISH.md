@@ -203,7 +203,8 @@ pnpm add https://github.com/你的用户名/dsh-session-link/tarball/v0.1.0
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
-| CI 每次都在 **10～16 秒**失败，注解只有一行 `Process completed with exit code 1` | 先分清是**账号/runner** 还是 **action**：加一个零 `uses:` 的诊断 workflow（见 `.github/workflows/diagnose.yml`）对着跑 | 诊断绿 + 主 CI 红 → 是 action 的问题；诊断也红 → 账号/runner 侧（查 Settings → Actions、计费、Support） |
+| CI 一直红，但**看不到是哪个 step 失败** | 这个仓库的 step 级信息在匿名 API 里取不到（成功/失败都返回 `steps=0`，注解恒为 `path=.github line=23`） | 把 workflow **拆成多个 job**（一个 job 一件事）：每个 job 各对应一个 check-run，`GET /commits/<sha>/check-runs` 就能拿到 `name + conclusion`，哪件坏一目了然 |
+| 拆 job 后定位到 `host-offline` 红，本地却绿 | `test/offline-test.cjs` 顶层 `fs.readdirSync(SESSIONS_ROOT)` 在**没有会话目录**的环境（CI 全新 Linux）会抛 `ERR_INVALID_ARG_TYPE`，且抛在模块加载期，远程只看到 "exit code 1" | 顶层加守卫：`SESSIONS_ROOT === undefined ? [] : readdirSync(...)`；脚本随后打印"跳过"并 exit 0 |
 | 确诊是 action：`actions/checkout` / `actions/setup-node` 失败 | 本仓库实测：`checkout` v4/v7、`setup-node` v4/v7 在该 runner 的 set up 阶段就 exit 1，而零 action 的 workflow 正常 | 直接用 shell 替代：`git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .` + `git checkout $GITHUB_SHA`；Node 用镜像自带的，不再 `setup-node` |
 | `git push` 403 / `Authentication failed` | 用了账户密码，或 token 没有 `repo` 权限 | 用 PAT（classic 勾 `repo`，fine-grained 给 Contents: Read and write） |
 | `failed to push some refs (fetch first)` | 建仓时勾了 README/license，远程已有提交 | `git pull --rebase origin main` 后再 push |
