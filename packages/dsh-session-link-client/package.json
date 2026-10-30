@@ -1,0 +1,47 @@
+{
+  "name": "dsh-session-link-client",
+  "version": "0.1.0",
+  "description": "dsh-session-link 的浏览器半侧：在设置面板里提供带图标的「会话互联」页面（勾选式链接会话、双视角预览）。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "session",
+    "memory"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Moqianying/dsh-session-link.git",
+    "directory": "packages/dsh-session-link-client"
+  },
+  "dsh": {
+    "displayName": "会话互联（界面）",
+    "description": "设置面板中的「会话互联」页面。",
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  }
+}

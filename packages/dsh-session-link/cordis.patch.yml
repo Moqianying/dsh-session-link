@@ -1,0 +1,10 @@
+# dsh-session-link 的加载行。
+#
+# 若把本包声明进 profile 的 dsh.profile.bundles，这个 patch 会自动贡献一行；
+# 手动挂载时也可以直接把下面这一段抄进 profile 的 cordis.patch.yml。
+- insert:
+    - id: session-link
+      name: dsh-session-link
+      config:
+        enabled: true
+        autoInject: true

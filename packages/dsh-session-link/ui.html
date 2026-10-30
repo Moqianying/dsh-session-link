@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>会话互联 · session-link</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1b1f24;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #3b6cf6;
+    --accent-soft: #eef2ff;
+    --card: #f8fafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #e6e8ec;
+      --muted: #9aa3af;
+      --line: #262b34;
+      --accent: #7aa2ff;
+      --accent-soft: #1a2338;
+      --card: #151922;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card); color: var(--fg);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: #d33; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input[type="text"] {
+    font: inherit; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--fg); min-width: 180px;
+  }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab {
+    padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card);
+  }
+  .tab.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px; }
+  tr:hover td { background: var(--card); }
+  .id { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); font-size: 12px;
+  }
+  .panel {
+    margin-top: 20px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--card); overflow: hidden;
+  }
+  .panel header {
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .panel pre {
+    margin: 0; padding: 14px; max-height: 380px; overflow: auto;
+    font: 12px/1.55 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word;
+  }
+  .hint { color: var(--muted); font-size: 12px; }
+  .toast {
+    position: fixed; right: 20px; bottom: 20px; padding: 10px 16px; border-radius: 10px;
+    background: var(--accent); color: #fff; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <h1>会话互联 · session-link</h1>
+  <p class="sub">
+    勾选要互通的会话，保存后即刻生效：这些会话彼此之间会自动带上对方的最近对话摘要（跨会话记忆）。
+    配置保存在 <span class="id">$DSH_HOME/session-links.json</span>。
+  </p>
+
+  <div class="bar">
+    <button id="refresh">刷新</button>
+    <button id="newGroup">新建链接组</button>
+    <input id="groupName" type="text" placeholder="组名，例如 逆向研究线" />
+    <button id="save" class="primary">保存</button>
+    <button id="deleteGroup" class="danger">删除当前组</button>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:56px">互通</th>
+        <th>标题</th>
+        <th style="width:300px">会话 id</th>
+        <th style="width:220px">工作目录</th>
+        <th style="width:130px">创建时间</th>
+        <th style="width:80px">预览</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="panel">
+    <header>
+      <span>注入内容预览</span>
+      <span class="hint" id="previewHint">点某一行的「预览」查看该会话实际收到的跨会话记忆</span>
+    </header>
+    <pre id="preview">（尚未选择会话）</pre>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/session-link';
+const state = { groups: [], sessions: [], activeGroupId: null, draft: new Map() };
+
+function toast(message) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+function activeGroup() {
+  return state.groups.find((group) => group.id === state.activeGroupId);
+}
+
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  if (state.groups.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'hint';
+    empty.textContent = '还没有链接组，先「新建链接组」。';
+    tabs.appendChild(empty);
+    return;
+  }
+  for (const group of state.groups) {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (group.id === state.activeGroupId ? ' active' : '');
+    tab.textContent = group.name + ' (' + group.sessions.length + ')';
+    tab.onclick = () => {
+      state.activeGroupId = group.id;
+      render();
+    };
+    tabs.appendChild(tab);
+  }
+}
+
+function renderRows() {
+  const body = document.getElementById('rows');
+  body.innerHTML = '';
+  const group = activeGroup();
+  if (group === undefined) return;
+  for (const session of state.sessions) {
+    const tr = document.createElement('tr');
+
+    const cellCheck = document.createElement('td');
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = group.sessions.includes(session.sessionId);
+    check.onchange = () => {
+      if (check.checked) {
+        if (!group.sessions.includes(session.sessionId)) group.sessions.push(session.sessionId);
+      } else {
+        group.sessions = group.sessions.filter((id) => id !== session.sessionId);
+      }
+      renderTabs();
+    };
+    cellCheck.appendChild(check);
+    tr.appendChild(cellCheck);
+
+    const cellTitle = document.createElement('td');
+    cellTitle.textContent = session.title || '（无标题）';
+    tr.appendChild(cellTitle);
+
+    const cellId = document.createElement('td');
+    cellId.className = 'id';
+    cellId.textContent = session.sessionId;
+    tr.appendChild(cellId);
+
+    const cellCwd = document.createElement('td');
+    cellCwd.className = 'id';
+    cellCwd.textContent = session.cwd || '未知';
+    tr.appendChild(cellCwd);
+
+    const cellTime = document.createElement('td');
+    cellTime.className = 'id';
+    cellTime.textContent = session.createdAtText;
+    tr.appendChild(cellTime);
+
+    const cellPreview = document.createElement('td');
+    const previewButton = document.createElement('button');
+    previewButton.textContent = '预览';
+    previewButton.onclick = () => previewMemory(session.sessionId);
+    cellPreview.appendChild(previewButton);
+    tr.appendChild(cellPreview);
+
+    body.appendChild(tr);
+  }
+}
+
+function render() {
+  renderTabs();
+  renderRows();
+}
+
+async function previewMemory(sessionId) {
+  const pre = document.getElementById('preview');
+  const hint = document.getElementById('previewHint');
+  pre.textContent = '加载中…';
+  hint.textContent = sessionId;
+  try {
+    const response = await fetch(API + '/memory?sessionId=' + encodeURIComponent(sessionId));
+    const data = await response.json();
+    pre.textContent = data.text || '(空)';
+  } catch (error) {
+    pre.textContent = '预览失败：' + error;
+  }
+}
+
+async function load() {
+  const response = await fetch(API + '/state');
+  const data = await response.json();
+  state.groups = Array.isArray(data.groups) ? data.groups : [];
+  state.sessions = Array.isArray(data.sessions) ? data.sessions : [];
+  if (state.groups.length > 0 && !state.groups.some((group) => group.id === state.activeGroupId)) {
+    state.activeGroupId = state.groups[0].id;
+  }
+  render();
+}
+
+document.getElementById('refresh').onclick = () => load().then(() => toast('已刷新'));
+
+document.getElementById('newGroup').onclick = () => {
+  const input = document.getElementById('groupName');
+  const name = input.value.trim();
+  if (name.length === 0) {
+    toast('先填组名');
+    return;
+  }
+  const id = name.replace(/[\\/:*?"<>|\s]+/g, '-').slice(0, 48) || 'default';
+  if (!state.groups.some((group) => group.id === id)) {
+    state.groups.push({ id, name, note: '', sessions: [], createdAt: Date.now() });
+  }
+  state.activeGroupId = id;
+  input.value = '';
+  renderTabs();
+  renderRows();
+  toast('已新建组：' + name + '（别忘了保存）');
+};
+
+document.getElementById('deleteGroup').onclick = () => {
+  if (state.activeGroupId === null) return;
+  const group = activeGroup();
+  if (group === undefined) return;
+  if (!confirm('删除组「' + group.name + '」？会话本身不会被删除。')) return;
+  state.groups = state.groups.filter((item) => item.id !== group.id);
+  state.activeGroupId = state.groups.length > 0 ? state.groups[0].id : null;
+  render();
+  toast('已删除组，记得保存');
+};
+
+document.getElementById('save').onclick = async () => {
+  try {
+    const response = await fetch(API + '/state', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ groups: state.groups })
+    });
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || '保存失败');
+    state.groups = data.groups;
+    toast('已保存，链接立即生效');
+    render();
+  } catch (error) {
+    toast('保存失败：' + error.message);
+  }
+};
+
+load().catch((error) => {
+  document.getElementById('rows').innerHTML =
+    '<tr><td colspan="6">加载失败：' + error + '</td></tr>';
+});
+</script>
+</body>
+</html>

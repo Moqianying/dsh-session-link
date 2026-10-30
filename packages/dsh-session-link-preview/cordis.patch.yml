@@ -1,0 +1,4 @@
+# dsh-session-link-preview 的加载行。
+- insert:
+    - id: session-link-preview
+      name: dsh-session-link-preview

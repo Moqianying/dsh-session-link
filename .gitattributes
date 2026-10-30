@@ -1,0 +1,6 @@
+# 统一换行：文本用 LF，避免 Windows 检出时把 .sh / .js 变成 CRLF
+* text=auto eol=lf
+
+# Windows 脚本保留 CRLF 更省事（PowerShell 两种都认，这里仍用 LF 统一）
+*.ps1 text eol=lf
+*.sh  text eol=lf

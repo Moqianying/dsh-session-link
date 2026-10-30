@@ -1,0 +1,39 @@
+{
+  "name": "dsh-session-link-preview",
+  "version": "0.1.0",
+  "description": "会话互联的预览接口：既可看某会话「收到的跨会话记忆」，也可看它「被链接后会被提供的内容」（未链接也能预览）。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib/impl.js",
+    "cordis.patch.yml"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "session",
+    "memory"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Moqianying/dsh-session-link.git",
+    "directory": "packages/dsh-session-link-preview"
+  },
+  "dsh": {
+    "displayName": "会话互联（预览接口）",
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

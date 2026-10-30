@@ -1,0 +1,26 @@
+{
+  "name": "dsh-session-link-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DeepSeek Harness 插件：把选中的历史会话链接成组，互通跨会话记忆。",
+  "scripts": {
+    "test": "node test/offline-test.cjs && node test/client-smoke.cjs",
+    "check": "node --check packages/dsh-session-link/index.js && node --check packages/dsh-session-link-preview/index.js && node --check packages/dsh-session-link-preview/lib/impl.js && node --check packages/dsh-session-link-client/client.js && node --check packages/dsh-session-link-client/index.js",
+    "install:ps1": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
+    "install:sh": "bash scripts/install.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "session",
+    "memory",
+    "cross-session"
+  ],
+  "license": "MIT"
+}

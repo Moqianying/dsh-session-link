@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Syntax check
+        run: node --check packages/dsh-session-link/index.js && node --check packages/dsh-session-link-preview/index.js && node --check packages/dsh-session-link-preview/lib/impl.js && node --check packages/dsh-session-link-client/client.js && node --check packages/dsh-session-link-client/index.js
+
+      - name: package.json files are valid JSON
+        run: |
+          node -e "
+          const fs = require('node:fs')
+          const files = [
+            'package.json',
+            'packages/dsh-session-link/package.json',
+            'packages/dsh-session-link-client/package.json',
+            'packages/dsh-session-link-preview/package.json',
+            'packages/dsh-session-link-diag/package.json'
+          ]
+          for (const file of files) {
+            JSON.parse(fs.readFileSync(file, 'utf8'))
+            console.log('ok', file)
+          }
+          "
+
+      # 客户端半侧自带迷你 React + 迷你 DOM，不需要浏览器，也不需要 dsh 环境
+      - name: Client smoke test
+        run: node test/client-smoke.cjs
+
+      # 宿主侧需要真实会话文件；CI 上跳过（脚本会打印跳过原因并正常退出）
+      - name: Host offline test (skips without sessions)
+        run: node test/offline-test.cjs

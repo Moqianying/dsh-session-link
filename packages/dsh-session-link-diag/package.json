@@ -1,0 +1,11 @@
+{
+  "name": "dsh-session-link-diag",
+  "version": "0.0.1",
+  "description": "临时诊断包：报告 client-modules 启动图里是否包含 dsh-session-link-client。验证后可删。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "license": "MIT"
+}

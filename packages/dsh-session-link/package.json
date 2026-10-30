@@ -1,0 +1,56 @@
+{
+  "name": "dsh-session-link",
+  "version": "0.1.0",
+  "description": "会话互联：把任意挑选的历史会话链接成组，使组内会话互通跨会话记忆（自动注入 recall 上下文 + session_link/session_recall 工具 + 勾选式 Web 选择页）。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "ui.html",
+    "cordis.patch.yml",
+    "README.zh.md"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "session",
+    "memory",
+    "cross-session"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Moqianying/dsh-session-link.git",
+    "directory": "packages/dsh-session-link"
+  },
+  "bugs": {
+    "url": "https://github.com/Moqianying/dsh-session-link/issues"
+  },
+  "homepage": "https://github.com/Moqianying/dsh-session-link#readme",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/dsh-home-paths": "*",
+    "@deepseek-ai/dsh-llm": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-session-persistence": "*",
+    "@deepseek-ai/dsh-tools": "*",
+    "@deepseek-ai/schemastery": "*"
+  },
+  "dependencies": {},
+  "dsh": {
+    "displayName": "会话互联",
+    "description": "把选中的历史会话链接成组，组内会话自动互通跨会话记忆。",
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
