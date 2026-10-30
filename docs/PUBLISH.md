@@ -169,13 +169,34 @@ Remove-Item $tmp -Recurse -Force
 
 ## 第 7 步（可选）：发布一个版本，让"装某个固定版本"成为可能
 
+### 一次性准备 gh（免 PAT）
+
 ```powershell
-cd <仓库目录>
-git tag -a v0.1.0 -m "dsh-session-link v0.1.0"
-git push origin v0.1.0
+winget install --id GitHub.cli -e
+gh auth login --hostname github.com --git-protocol https --web   # 弹浏览器，点一次 Authorize
+gh auth status                                                  # 确认已登录
 ```
 
-然后 GitHub → Releases → Draft a new release → 选 `v0.1.0` → 发布。
+### 发版
+
+```powershell
+cd <仓库目录>
+./scripts/release.ps1 -DryRun                                  # 先看计划
+./scripts/release.ps1 -Version 0.1.0 -CreateRelease             # verify → tag → push tag → 建 Release
+# gh 还没登录时加 -Login：./scripts/release.ps1 -Version 0.1.0 -CreateRelease -Login
+```
+
+脚本前置检查（任一不满足都会中止，且不会留下 tag）：在 `main`、工作区干净、有 `origin`、tag 不存在、
+`verify.ps1` 全绿。Release 正文取 `docs/RELEASE-SUMMARY.md`。
+
+完全没有 gh 时的等价比法：
+
+```powershell
+git tag -a v0.1.0 -m "dsh-session-link v0.1.0"
+git push origin v0.1.0
+# 然后网页 Releases → Draft a new release → 选 v0.1.0 → 粘贴 docs/RELEASE-SUMMARY.md
+```
+
 之后别人可以钉住版本：
 
 ```bash

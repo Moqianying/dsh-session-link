@@ -184,9 +184,17 @@ node test/client-smoke.cjs    # 浏览器半侧：包壳/注册/样式/真渲染
 | `scripts/install.ps1` / `install.sh` | 装进 profile，幂等维护 patch 标记块 |
 | `scripts/verify.ps1` | 本地跑等同 CI 的检查（可当提交前钩子） |
 | `scripts/set-owner.ps1` | 把 `<YOU>` / `<YOUR NAME>` 占位符换成你的信息 |
-| `scripts/set-repo-meta.ps1` | 填仓库 description / topics（gh 或 `-Token`） |
-| `scripts/release.ps1` | 先 verify → 打注释 tag → push tag → （可选）建 Release |
+| `scripts/set-repo-meta.ps1` | 填仓库 description / topics（**免 PAT**：走 `gh` 的浏览器登录，加 `-Login` 可就地登录） |
+| `scripts/release.ps1` | 先 verify → 打注释 tag → push tag → （`-CreateRelease`）用 `gh` 建 Release |
 | `scripts/capture.ps1` | 打印截图清单并打开需要采集的页面 |
+| `scripts/lib-gh.ps1` | 上面两个脚本共用的 gh 定位与登录检查 |
+
+github 侧只需要一次性准备（不需要手搓 PAT）：
+
+```powershell
+winget install --id GitHub.cli -e
+gh auth login --hostname github.com --git-protocol https --web
+```
 
 除 `install.*` 外都支持 `-DryRun`，先看它要做什么再执行。
 

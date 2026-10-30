@@ -1,0 +1,79 @@
+name: Bug report
+description: 报告一个可复现的问题（安装、设置页、记忆注入、工具行为等）
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先自查三件事，能省一轮来回：
+        1. 整页刷新（Ctrl+R）——设置页是浏览器端注册的，不刷新不会加载新 bundle
+        2. 打开 `/api/session-link/diag` 看 `hasClient` 是否为 `true`
+        3. 本地跑 `./scripts/verify.ps1`，看是否也能复现
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: dsh 版本
+      description: "运行 `dsh --version` 的结果"
+      placeholder: "例如 0.2.0-rc.3"
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本 / 提交
+      description: "`packages/dsh-session-link/package.json` 里的 version，或 `git rev-parse --short HEAD`"
+      placeholder: "0.1.0 / 68f2322"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 出问题的部分
+      options:
+        - 安装 / 挂载（设置里看不到「会话互联」）
+        - 设置页 UI（勾选、搜索、排序、预览）
+        - 跨会话记忆注入（模型收不到摘要）
+        - 工具 session_link / session_recall
+        - HTTP 接口（state / preview / memory / ui）
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 设置 → 会话互联 → 新建组「测试」
+        2. 勾选会话 A 与 B
+        3. 在 A 里提问……
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为 / 报错
+      description: "浏览器控制台报错、`/api/session-link/diag` 的输出、或 `scripts/verify.ps1` 的失败行"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他信息
+      description: "是否深色主题、是否多项目、会话数量、`cordis.patch.yml` 里相关的那几行等"
+    validations:
+      required: false

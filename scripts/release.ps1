@@ -2,7 +2,8 @@
 #
 #   ./scripts/release.ps1 -DryRun              # 只打印将要执行什么
 #   ./scripts/release.ps1 -Version 0.1.0       # 跑测试 → 打注释 tag → push tag
-#   ./scripts/release.ps1 -Version 0.1.0 -CreateRelease   # 再用 gh 建 Release
+#   ./scripts/release.ps1 -Version 0.1.0 -CreateRelease        # 再用 gh 建 Release（免 PAT）
+#   ./scripts/release.ps1 -Version 0.1.0 -CreateRelease -Login # gh 未登录时就地启动浏览器登录
 #
 # 前置：工作区干净、当前分支 main、已配置 origin。
 # 会先跑一遍 verify（等同 CI）；失败就中止，不会留下 tag。
@@ -12,21 +13,17 @@ param(
     [string]$Version = '0.1.0',
     [switch]$CreateRelease,
     [switch]$SkipTests,
+    [switch]$Login,
     [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
+. (Join-Path $PSScriptRoot 'lib-gh.ps1')
 
 $tag = "v$Version"
 $notesFile = Join-Path (Join-Path $repo 'docs') 'RELEASE-SUMMARY.md'
-
-function Get-Command-Or-Empty([string]$name) {
-    $cmd = Get-Command $name -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
-    return ''
-}
 
 Write-Host "目标 tag : $tag"
 
@@ -89,19 +86,25 @@ Write-Host '  已推送 tag' -ForegroundColor Green
 
 # ---- Release ----
 if ($CreateRelease) {
-    $gh = Get-Command-Or-Empty 'gh'
+    # gh 走浏览器登录，不需要 PAT；未登录时按 -Login 决定是否就地登录
+    $gh = Resolve-Gh -Login:$Login
     if (-not $gh) {
-        Write-Host '没有 gh：去网页 Releases → Draft a new release → 选 tag 粘贴说明。' -ForegroundColor Yellow
-        Write-Host "  说明文件：$notesFile"
+        Write-Host ''
+        Write-Host 'tag 已推送，但 Release 没建。两种做法：' -ForegroundColor Yellow
+        Write-Host "  A. 登录 gh 后重跑：gh auth login --hostname github.com --git-protocol https --web"
+        Write-Host "     然后：gh release create $tag --title `"$tag`" --notes-file docs/RELEASE-SUMMARY.md"
+        Write-Host '  B. 网页：仓库 → Releases → Draft a new release → 选 tag → 粘贴下面文件的内容'
+        Write-Host "     说明文件：$notesFile"
         exit 0
     }
     if (-not (Test-Path $notesFile)) {
         Write-Host "缺少 $notesFile，跳过自动创建 Release（可在网页手填）" -ForegroundColor Yellow
         exit 0
     }
-    & gh release create $tag --title $tag --notes-file $notesFile
-    if ($LASTEXITCODE -ne 0) { throw 'gh release create 失败' }
-    Write-Host '  已创建 Release' -ForegroundColor Green
+    Write-Host '用 gh 创建 Release…' -ForegroundColor Cyan
+    & $gh release create $tag --title $tag --notes-file $notesFile
+    if ($LASTEXITCODE -ne 0) { throw 'gh release create 失败（检查 gh auth status 与仓库权限）' }
+    Write-Host '  已创建 Release ✅' -ForegroundColor Green
 }
 
 Write-Host ''

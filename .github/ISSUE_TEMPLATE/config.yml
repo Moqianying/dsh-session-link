@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安装 / 使用问题先看文档
+    url: https://github.com/Moqianying/dsh-session-link/blob/main/README.md
+    about: 安装方式、配置项、HTTP 接口、排错清单都在 README 里
+  - name: 实现原理与已知限制
+    url: https://github.com/Moqianying/dsh-session-link/blob/main/docs/ARCHITECTURE.zh.md
+    about: 注入点、只读历史、插槽与图标、进程内 ESM 缓存、测试策略、已知限制
