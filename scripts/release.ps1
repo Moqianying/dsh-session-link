@@ -46,6 +46,9 @@ if ($dirty) {
 
 $remotes = git remote
 if (-not $remotes) { throw '没有配置 origin：先 git remote add origin <url>' }
+$remoteUrl = (git remote get-url origin).Trim()
+# git@github.com:owner/repo.git → https://github.com/owner/repo
+$slug = ($remoteUrl -replace '^git@github\.com:', 'https://github.com/') -replace '\.git$', ''
 
 $existing = git tag --list $tag
 if ($existing) {
@@ -108,5 +111,7 @@ if ($CreateRelease) {
 }
 
 Write-Host ''
-Write-Host "完成：$tag 已发布。别人的固定版本装法：" -ForegroundColor Green
-Write-Host "  git clone --branch $tag https://github.com/$(($remotes | Select-Object -First 1))/...  (或网页 Download ZIP)"
+Write-Host "完成：$tag 已发布。" -ForegroundColor Green
+Write-Host "  Release 页面 : $slug/releases/tag/$tag"
+Write-Host "  固定版本克隆 : git clone --branch $tag $slug.git"
+Write-Host "  下载 ZIP     : $slug/archive/refs/tags/$tag.zip"
