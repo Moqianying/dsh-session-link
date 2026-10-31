@@ -2,6 +2,23 @@
 
 遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [0.1.1] - 2026-10-31
+
+### Fixed
+
+- **冷启动后「设置 → 会话互联」整页 404**（`/api/session-link/state`、`/ui` 缺失）。
+  原因：宿主插件 `inject` 只有 `tools` / `sessionPersistence`，cordis 可能在 `webServer`
+  就绪之前就调用 `apply`；旧代码 `ctx.get('webServer')` 拿到 `undefined` 后**静默 return**，
+  于是路由一条都没挂，而启动日志只有一行「已启用」，极难排查。
+  现在改为 `ctx.inject(['webServer'], …)` 等待服务就绪后再挂载，并在服务不可用时打印警告。
+  现象上还有个误导点：同目录的 `dsh-session-link-diag` / `dsh-session-link-preview` 因为
+  `inject` 里写了 `webServer` 反而正常，容易让人误判成"插件整体没加载"。
+
+### Added
+
+- `test/offline-test.cjs` 新增「webServer 延迟就绪」回归用例：模拟 webserver 晚于插件出现，
+  断言注入回调触发后 `/state`、`/memory`、`/ui` 三条路由都被挂上。
+
 ## [0.1.0] - 2026-10-31
 
 首个公开版本。

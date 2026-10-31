@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-link",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "会话互联：把任意挑选的历史会话链接成组，使组内会话互通跨会话记忆（自动注入 recall 上下文 + session_link/session_recall 工具 + 勾选式 Web 选择页）。",
   "type": "module",
   "main": "index.js",

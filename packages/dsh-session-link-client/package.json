@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-link-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-session-link 的浏览器半侧：在设置面板里提供带图标的「会话互联」页面（勾选式链接会话、双视角预览）。",
   "type": "module",
   "main": "index.js",

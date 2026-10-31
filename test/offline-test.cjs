@@ -265,6 +265,59 @@ async function main() {
   console.log('\n[unlink]', unlinked.message)
   console.log('[delete_group]', deleted.message)
 
+  // 8) 冷启动顺序回归：webServer 晚于插件就绪时，UI 路由必须仍然挂上
+  //    （真实现场：重启 dsh web 后「设置 → 会话互联」整页 404，因为 apply 时
+  //     webServer 还没就绪，旧代码直接 return 了，日志里只有一行「已启用」）
+  const pendingInjects = []
+  const lateRouters = []
+  const lateCtx = {
+    on() {},
+    effect() {},
+    get(key) {
+      if (key === 'sessionPersistence') return persistence
+      return undefined // webServer 尚未就绪
+    },
+    inject(services, callback) {
+      pendingInjects.push({ services, callback })
+      return () => {}
+    },
+    tools: { register: () => () => {} }
+  }
+  const lateConfig = plugin.Config({ storePath: TMP_STORE, includeToolCalls: false })
+  plugin.apply(lateCtx, lateConfig)
+  assert.strictEqual(pendingInjects.length, 1, '未就绪时应注册一个 webServer 的注入等待')
+  assert.ok(pendingInjects[0].services.includes('webServer'), '等待的服务应为 webServer')
+
+  // 模拟 webServer 就绪：调用注入回调，应立刻挂上 3 条路由
+  const readyWebCtx = {
+    on: lateCtx.on,
+    effect: lateCtx.effect,
+    get(key) {
+      if (key === 'sessionPersistence') return persistence
+      if (key === 'webServer') {
+        return {
+          port: 3080,
+          host: '127.0.0.1',
+          register(route) {
+            lateRouters.push(route)
+            return () => {}
+          }
+        }
+      }
+      return undefined
+    },
+    tools: lateCtx.tools
+  }
+  pendingInjects[0].callback(readyWebCtx)
+  const paths = lateRouters.map((route) => route.path).sort()
+  assert.deepStrictEqual(
+    paths,
+    ['/api/session-link/memory', '/api/session-link/state', '/api/session-link/ui'],
+    `webServer 就绪后应挂 3 条路由，实际：${JSON.stringify(paths)}`
+  )
+  assert.ok(lateRouters.every((route) => route.kind === 'exact'), '路由类型应为 exact')
+  console.log('[webServer 延迟就绪] 路由仍被正确挂载：', paths.join(', '))
+
   console.log('\n全部断言通过 ✅')
 }
 

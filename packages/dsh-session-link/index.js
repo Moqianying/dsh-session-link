@@ -836,7 +836,12 @@ async function readJsonBody(req) {
 /** 注册 /api/session-link/* 路由与选择页。 */
 function registerRoutes(ctx, catalog, store, options) {
   const webServer = ctx.get('webServer')
-  if (webServer === undefined || typeof webServer.register !== 'function') return []
+  if (webServer === undefined || typeof webServer.register !== 'function') {
+    // 不要把"服务还没就绪"当成"不需要挂载"：静默返回会让整页 UI 表现为 HTTP 404，
+    // 而且日志里只有一行"已启用"，极难排查（本项目真的踩过）。调用方负责等待服务。
+    console.warn('[session-link] webServer 不可用，路由未挂载（应由 ctx.inject 等待就绪后再调用）')
+    return []
+  }
 
   const sessionsPayload = async () => {
     const snapshot = await store.read()
@@ -964,10 +969,24 @@ export function apply(ctx, config) {
   }
 
   if (options.webUi) {
-    try {
-      registerRoutes(ctx, catalog, store, options)
-    } catch (error) {
-      console.warn(`[session-link] Web 选择页挂载失败：${error?.message ?? error}`)
+    const mountRoutes = (target) => {
+      try {
+        registerRoutes(target, catalog, store, options)
+      } catch (error) {
+        console.warn(`[session-link] Web 选择页挂载失败：${error?.message ?? error}`)
+      }
+    }
+
+    // 冷启动时 webServer 常常还没就绪：此时必须用 ctx.inject 等它，而不是直接跳过。
+    // 之前直接跳过导致重启后「设置 → 会话互联」整页 404，而 diag/preview 两个包因为
+    // inject 里写了 webServer 反而正常 —— 现象极具误导性。
+    if (ctx.get('webServer') === undefined && typeof ctx.inject === 'function') {
+      ctx.inject(['webServer'], (webCtx) => {
+        console.info('[session-link] webServer 就绪，开始挂载 UI 路由')
+        mountRoutes(webCtx)
+      })
+    } else {
+      mountRoutes(ctx)
     }
   }
 
