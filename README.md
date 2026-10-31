@@ -1,9 +1,19 @@
 # dsh-session-link · DSH 会话互联插件
 
 [![ci](https://github.com/Moqianying/dsh-session-link/actions/workflows/diagnose.yml/badge.svg)](https://github.com/Moqianying/dsh-session-link/actions/workflows/diagnose.yml)
+[![release](https://img.shields.io/github/v/release/Moqianying/dsh-session-link?label=release)](https://github.com/Moqianying/dsh-session-link/releases)
+
+**最新版 [v0.1.1](https://github.com/Moqianying/dsh-session-link/releases/tag/v0.1.1)** ·
+[全部 Releases](https://github.com/Moqianying/dsh-session-link/releases) ·
+[更新日志](CHANGELOG.md) ·
+[实现原理](docs/ARCHITECTURE.zh.md) ·
+[发布指南](docs/PUBLISH.md)
 
 > 把任意挑几个历史会话「链接」成组，让组内会话**互通跨会话记忆**。设置面板里带图标的独立页面，勾选即生效。
 > DeepSeek Harness（dsh）Web GUI 插件。中文文档 ← 本文件；English: [README.en.md](README.en.md)
+
+> [!NOTE]
+> `v0.1.0` 有冷启动缺陷（dsh web 重启后「设置 → 会话互联」整页 404），请使用 **v0.1.1**。
 
 ```
 会话 A ─┐

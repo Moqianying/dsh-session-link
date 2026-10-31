@@ -1,9 +1,21 @@
 # dsh-session-link · cross-session memory for DeepSeek Harness
 
+[![ci](https://github.com/Moqianying/dsh-session-link/actions/workflows/diagnose.yml/badge.svg)](https://github.com/Moqianying/dsh-session-link/actions/workflows/diagnose.yml)
+[![release](https://img.shields.io/github/v/release/Moqianying/dsh-session-link?label=release)](https://github.com/Moqianying/dsh-session-link/releases)
+
+**Latest [v0.1.1](https://github.com/Moqianying/dsh-session-link/releases/tag/v0.1.1)** ·
+[All releases](https://github.com/Moqianying/dsh-session-link/releases) ·
+[Changelog](CHANGELOG.md) ·
+[Architecture](docs/ARCHITECTURE.zh.md)
+
 > Link any set of historical dsh sessions into groups so they **share memory**: every step in one
 > linked session carries a digest of the others. Ships a settings page with its own icon, two model
 > tools, and a two-perspective preview (what a session *receives* / what it *provides*).
 > Chinese docs: [README.md](README.md)
+
+> [!NOTE]
+> `v0.1.0` has a cold-start defect (the Settings → Session Link page returns 404 after a dsh web
+> restart). Use **v0.1.1**.
 
 ## Features
 
